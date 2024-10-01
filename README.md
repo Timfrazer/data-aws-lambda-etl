@@ -85,9 +85,6 @@ The Lambda function uses the following environment variables:
 - `DATABASE_CREDENTIALS_SECRET_ARN`: ARN of the database credentials secret
 - `API_CREDENTIALS_SECRET_ARN`: ARN of the API credentials secret
 
-## API Gateway
-
-An API Gateway is set up with a POST endpoint at `/collect` to trigger the Lambda function.
 
 ## Local Development
 

@@ -1,5 +1,7 @@
 import os
 import logging
+import json
+import boto3
 import dlt
 from dlt.sources.rest_api import rest_api_source
 
@@ -7,44 +9,57 @@ from dlt.sources.rest_api import rest_api_source
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Initialize AWS Secrets Manager client
+secrets_manager = boto3.client('secretsmanager')
+
+def get_secret(secret_name):
+    try:
+        response = secrets_manager.get_secret_value(SecretId=secret_name)
+        return json.loads(response['SecretString'])
+    except Exception as e:
+        logger.error(f"Error retrieving secret {secret_name}: {str(e)}")
+        raise
+
+def create_source(api_config):
+    return rest_api_source({
+        "client": {
+            "base_url": api_config['api_base_url'],
+            "auth": {
+                "token": api_config['api_token'],
+            },
+            "paginator": {
+                "type": "json_response",
+                "next_url_path": "paging.next",
+            },
+        },
+        "resources": ["posts", "comments"],
+    })
+
+def create_pipeline(db_config):
+    return dlt.pipeline(
+        pipeline_name="rest_api_example",
+        destination='postgres',
+        dataset_name="rest_api_data",
+        credentials={
+            'host': db_config['host'],
+            'port': db_config['port'],
+            'database': db_config['database'],
+            'user': db_config['username'],
+            'password': db_config['password'],
+        }
+    )
+
 def lambda_handler(event, context):
     try:
-        # Get configuration from environment variables
-        api_base_url = os.getenv('API_BASE_URL')
-        api_token = os.getenv('API_TOKEN')
-        pg_host = os.getenv('PG_HOST')
-        pg_port = os.getenv('PG_PORT')
-        pg_database = os.getenv('PG_DATABASE')
-        pg_user = os.getenv('PG_USER')
-        pg_password = os.getenv('PG_PASSWORD')
+        # Get secrets
+        db_config = get_secret(os.environ['DATABASE_CREDENTIALS_SECRET_ARN'])
+        api_config = get_secret(os.environ['API_CREDENTIALS_SECRET_ARN'])
 
-        source = rest_api_source({
-            "client": {
-                "base_url": api_base_url,
-                "auth": {
-                    "token": api_token,
-                },
-                "paginator": {
-                    "type": "json_response",
-                    "next_url_path": "paging.next",
-                },
-            },
-            "resources": ["posts", "comments"],
-        })
+        # Create source and pipeline
+        source = create_source(api_config)
+        pipeline = create_pipeline(db_config)
 
-        pipeline = dlt.pipeline(
-            pipeline_name="rest_api_example",
-            destination='postgres',
-            dataset_name="rest_api_data",
-            credentials={
-                'host': pg_host,
-                'port': pg_port,
-                'database': pg_database,
-                'user': pg_user,
-                'password': pg_password,
-            }
-        )
-
+        # Run pipeline
         load_info = pipeline.run(source)
         logger.info(f"Load info: {load_info}")
 
