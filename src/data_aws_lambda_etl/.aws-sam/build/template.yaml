@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  DatabaseCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: dev/janos
+      Description: Database credentials for DLT function
+      SecretString:
+        Fn::Sub: '{"username":"${username}","password":"${password}","host":"${host}","port":"${port}","database":"${database}"}'
+  ApiCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: dev/api_credentials
+      Description: API credentials for DLT function
+      SecretString:
+        Fn::Sub: '{"api_base_url":"${api_base_url}","api_token":"${api_token}"}'
+  DltFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command:
+        - app.lambda_handler
+      Timeout: 30
+      MemorySize: 1024
+      Environment:
+        Variables:
+          DLT_PROJECT_DIR: /tmp
+          DLT_DATA_DIR: /tmp
+          DLT_PIPELINE_DIR: /tmp
+          DATABASE_CREDENTIALS_SECRET_ARN:
+            Ref: DatabaseCredentialsSecret
+          API_CREDENTIALS_SECRET_ARN:
+            Ref: ApiCredentialsSecret
+      Policies:
+      - Statement:
+        - Sid: AllowDLTSecretAccess
+          Effect: Allow
+          Action:
+          - secretsmanager:GetSecretValue
+          Resource:
+          - Ref: DatabaseCredentialsSecret
+          - Ref: ApiCredentialsSecret
+      VpcConfig:
+        SecurityGroupIds:
+        - sg-0edc143e69a656c3f
+        SubnetIds:
+        - subnet-e2ba61bd
+        - subnet-592ff03f
+        - subnet-1fb7123e
+        - subnet-531a741e
+        - subnet-25d43614
+        - subnet-a9de4ea7
+        Ipv6AllowedForDualStack: false
+      RuntimeManagementConfig:
+        UpdateRuntimeOn: Auto
+      ImageUri: dltfunction:dlt-aws
+    Metadata:
+      DockerBuildArgs:
+        BASE_IMAGE: public.ecr.aws/lambda/python:3.12.2024.09.13.17
+      DockerContext: /Users/timothyfrazer/Projects/data-aws-lambda-etl/src/data_aws_lambda_etl
+      DockerTag: dlt-aws
+      Dockerfile: Dockerfile
+      SamResourceId: DltFunction

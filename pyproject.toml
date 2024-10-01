@@ -1,0 +1,32 @@
+[project]
+name = "data-aws-lambda-etl"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Tim Frazer", email = "tim.frazer@littlebigthings.co" }
+]
+dependencies = [
+    "beautifulsoup4>=4.12.3",
+    "sqlalchemy>=2.0.35",
+    "pydantic>=2.9.2",
+    "requests>=2.32.3",
+    "dlt[postgres]>=1.1.0",
+    "aws-sam-cli>=1.125.0",
+    "aws-lambda-powertools>=3.0.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/data_aws_lambda_etl"]
